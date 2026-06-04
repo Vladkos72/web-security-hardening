@@ -1,0 +1,52 @@
+{
+  "skill_name": "web-security-hardening",
+  "evals": [
+    {
+      "id": 0,
+      "name": "cloudflare-worker-ai-proxy",
+      "prompt": "im about to deploy this cloudflare worker (it just forwards chat requests to openai). can you make sure its actually safe before i ship it? i really dont want some random person finding it and running up my openai bill",
+      "expected_output": "Key moved out of [vars] to a secret binding; auth gate added; rate limiting added; CORS locked to a specific origin instead of *; client input bounded/whitelisted instead of spread directly. Chat report explains fixes, hands off provider billing caps + key rotation.",
+      "files": ["fixtures/worker/"],
+      "assertions": [
+        {"text": "OPENAI_API_KEY is removed from [vars] in wrangler.toml (not left as a plaintext var)"},
+        {"text": "Code no longer hardcodes the key and reads it from env/secret binding only"},
+        {"text": "Some authentication/authorization gate is added before the upstream OpenAI call"},
+        {"text": "Rate limiting is introduced (CF rate limit rule, KV/DO counter, or equivalent)"},
+        {"text": "Access-Control-Allow-Origin is no longer '*'; restricted to specific origin(s)"},
+        {"text": "Client request body is validated/whitelisted rather than spread (...body) straight to OpenAI"},
+        {"text": "Report tells the user to rotate the exposed key and set provider-side billing/usage caps"}
+      ]
+    },
+    {
+      "id": 1,
+      "name": "chrome-extension-summarizer",
+      "prompt": "final check on my chrome extension before i put it on the web store. it summarizes pages using openai. is it secure?",
+      "expected_output": "Hardcoded OpenAI key flagged as unfixable in-client and routed to a backend (or clearly handed off); host permissions narrowed from <all_urls>; unused permissions dropped; innerHTML replaced with safe rendering/sanitization; onMessage sender validation added. Report explains why a key in an extension is unsafe and says to rotate it.",
+      "files": ["fixtures/extension/"],
+      "assertions": [
+        {"text": "The hardcoded OpenAI key is identified as exposed and addressed (removed/relocated to a backend), not merely obfuscated"},
+        {"text": "host_permissions / content_script matches no longer use <all_urls> (narrowed or justified)"},
+        {"text": "Unused permissions (e.g. cookies, webRequest) are removed from the manifest"},
+        {"text": "content.js no longer assigns untrusted content via innerHTML (uses textContent or sanitization)"},
+        {"text": "chrome.runtime.onMessage validates the sender or message shape before acting"},
+        {"text": "Report explains that any key shipped in an extension is public and must be rotated"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "nextjs-registration-app",
+      "prompt": "getting ready to launch my next.js app, it has user registration. can you lock down the security? worried about people stealing user data or my api key getting leaked",
+      "expected_output": "NEXT_PUBLIC_ secret leak fixed (key moved server-side, client call proxied); .env removed from tracking + .gitignore'd + rotation hand-off; SQL injection fixed with parameterized query; md5 password hashing replaced with bcrypt/argon2; session cookie gets HttpOnly/Secure/SameSite and stops being trivially forgeable; security headers added; dangerouslySetInnerHTML sanitized. Report covers it all.",
+      "files": ["fixtures/nextjs/"],
+      "assertions": [
+        {"text": "NEXT_PUBLIC_OPENAI_API_KEY leak is fixed: key moved server-side, client no longer calls OpenAI directly with it"},
+        {"text": ".env is added to .gitignore and the user is told to rotate the exposed DATABASE_URL/keys"},
+        {"text": "The INSERT in register.js uses a parameterized query instead of string interpolation"},
+        {"text": "Password hashing no longer uses md5; replaced with bcrypt/argon2/scrypt"},
+        {"text": "Session cookie gets HttpOnly, Secure and SameSite attributes (and is no longer a trivially-forgeable base64 of the email)"},
+        {"text": "Security headers are configured (CSP / HSTS / X-Content-Type-Options / X-Frame-Options) in next.config.js or middleware"},
+        {"text": "dangerouslySetInnerHTML with model output is sanitized or removed"}
+      ]
+    }
+  ]
+}
